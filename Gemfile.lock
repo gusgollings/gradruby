@@ -1,0 +1,15 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    rexml (3.2.5)
+    ruby-graphviz (1.2.5)
+      rexml
+
+PLATFORMS
+  arm64-darwin-22
+
+DEPENDENCIES
+  ruby-graphviz (~> 1.2)
+
+BUNDLED WITH
+   2.4.13
