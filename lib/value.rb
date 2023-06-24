@@ -1,101 +1,104 @@
-require 'set'
+# frozen_string_literal: true
 
+# The Value class represents a value that can be used in computations,
+# and can keep track of gradients for automatic differentiation.
 class Value
-  attr_accessor :label, :gradient, :data, :_backward
+  attr_accessor :label, :gradient, :data, :local_backward
   attr_reader :antecedents, :operation
 
-  def initialize(data, antecedents: [], operation: '', label: "")
+  def initialize(data, antecedents: [], operation: '', label: '')
     @data = data
     @antecedents = Set.new(antecedents)
     @operation = operation
     @label = label
-    @_backward = -> {}
-    
+    @local_backward = -> {}
+
     @gradient = 0.0
   end
 
-  def +(addend) 
-    addend = addend.is_a?(Value) ? addend : Value.new(addend)
-    sum = @data + addend.data
-    addends = [self, addend]
+  def +(other)
+    other = other.is_a?(Value) ? other : Value.new(other)
+    sum = @data + other.data
+    addends = [self, other]
     out = Value.new(sum, antecedents: addends, operation: '+')
-    
-    _backward = -> {
+
+    local_backward = lambda {
       @gradient += 1.0 * out.gradient
-      addend.gradient += 1.0 * out.gradient
+      other.gradient += 1.0 * out.gradient
     }
-    out._backward = _backward
+    out.local_backward = local_backward
 
-    return out
+    out
   end
- 
-  def *(multiplier)
-    multiplier = multiplier.is_a?(Value) ? multiplier : Value.new(multiplier)
-    product = @data * multiplier.data
-    multiplicands = [self, multiplier]
-    out = Value.new(product, antecedents: multiplicands, operation: "*")
 
-    _backward = -> {
-      @gradient += multiplier.data * out.gradient
-      multiplier.gradient += @data * out.gradient
+  def *(other)
+    other = other.is_a?(Value) ? other : Value.new(other)
+    product = @data * other.data
+    multiplicands = [self, other]
+    out = Value.new(product, antecedents: multiplicands, operation: '*')
+
+    local_backward = lambda {
+      @gradient += other.data * out.gradient
+      other.gradient += @data * out.gradient
     }
-    out._backward = _backward
+    out.local_backward = local_backward
 
-    return out
+    out
   end
-  
+
   def -@
     self * -1
   end
 
-  def -(subtrahend)
-    self + (-subtrahend)
+  def -(other)
+    self + -other
   end
-  
-  def /(divisor)
-    self * divisor**-1
-  end
-  
-  def **(exponent)
-    raise "Only supporting int/float powers" unless exponent.is_a?(Float) || exponent.is_a?(Integer)
-    out = Value.new(@data**exponent, antecedents: [self], operation: "**#{exponent}")
 
-    _backward = -> {
-      @gradient += exponent * (@data ** (exponent - 1)) * out.gradient
+  def /(other)
+    self * other**-1
+  end
+
+  def **(other)
+    raise 'Only supporting int/float powers' unless other.is_a?(Float) || other.is_a?(Integer)
+
+    out = Value.new(@data**other, antecedents: [self], operation: "**#{other}")
+
+    local_backward = lambda {
+      @gradient += other * (@data**(other - 1)) * out.gradient
     }
-    out._backward = _backward
+    out.local_backward = local_backward
 
-    return out
+    out
   end
-  
-  def exp
-    out = Value.new(Math.exp(@data), antecedents: [self], operation: "exp")
 
-    _backward = -> {
+  def exp
+    out = Value.new(Math.exp(@data), antecedents: [self], operation: 'exp')
+
+    local_backward = lambda {
       @gradient += out.data * out.gradient
     }
-    out._backward = _backward
+    out.local_backward = local_backward
 
-    return out 
+    out
   end
-  
-  # used for our nonlinearity, could also be `relu`, sigmoid 
+
+  # used for our nonlinearity, could also be `relu`, sigmoid
   def tanh
     activation = (Math.exp(2 * @data) - 1) / (Math.exp(2 * @data) + 1)
-    out = Value.new(activation, antecedents: [self], operation: "tanh")
+    out = Value.new(activation, antecedents: [self], operation: 'tanh')
 
-    _backward = -> {
+    local_backward = lambda {
       @gradient += (1 - activation**2) * out.gradient
     }
-    out._backward = _backward
+    out.local_backward = local_backward
 
-    return out
+    out
   end
 
   def backward
     topological_order = []
     visited = Set.new
-    build_topological_order = ->(vertex) {
+    build_topological_order = lambda { |vertex|
       unless visited.include? vertex
         visited << vertex
         vertex.antecedents.each do |antecedent|
@@ -107,18 +110,19 @@ class Value
     build_topological_order.call(self)
 
     @gradient = 1.0
-    
+
     topological_order.reverse.each do |node|
-      node._backward.call
+      node.local_backward.call
     end
   end
 
-private
+  private
+
   def coerce(other)
     [self, other]
   end
 
   def to_s
-    %[Value: #{@data}]
+    %(Value: #{@data})
   end
 end

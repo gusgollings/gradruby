@@ -1,0 +1,12 @@
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*'
+
+Metrics/MethodLength:
+  Exclude:
+    - 'lib/value.rb'
+    - 'helpers/directed_draw.rb'
+
+Metrics/AbcSize:
+  Exclude:
+    - 'helpers/directed_draw.rb'
