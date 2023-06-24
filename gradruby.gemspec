@@ -18,6 +18,7 @@ Gem::Specification.new do |s|
   s.homepage = 'http://rubygems.com/gems/gradruby'
   s.required_ruby_version = '>= 3.2.0'
   s.add_dependency 'ruby-graphviz'
+  s.add_dependency 'nyaplot'
   s.add_development_dependency 'rspec'
   s.add_development_dependency 'rubocop'
 end
